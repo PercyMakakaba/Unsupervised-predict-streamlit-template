@@ -28,8 +28,8 @@
 # Streamlit dependencies
 # from importlib.metadata import packages_distributions
 import streamlit as st
-from streamlit_option_menu import option_menu
-from streamlit_lottie import st_lottie
+#from streamlit_option_menu import option_menu
+#from streamlit_lottie import st_lottie
 
 # Data handling dependencies
 import pandas as pd
@@ -37,7 +37,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
-from wordcloud import WordCloud
+#from wordcloud import WordCloud
 import random
 
 # Custom Libraries
@@ -71,7 +71,7 @@ train_data = pd.read_csv("resources/data/train.csv")
 
 # App declaration
 def main():
-    page_options = ["Recommender System","Movie Information search", "Genre-based search","Dashboard", "Contact Us"]
+    page_options = ["Recommender System","Movie Information search", "Genre-based search", "Analytics" "Contact Us"]
 
     # -------------------------------------------------------------------
     # ----------- !! THIS CODE MUST NOT BE ALTERED !! -------------------
@@ -236,80 +236,32 @@ def main():
                     st.markdown(f"<style>{f.read()}</styel>", unsafe_allow_html=True)
         
         local_css('style/style.css')
-    
-        #Another page
-    if page_selection == "Another":
-
-        # Load ratings data
-        ratings_data = pd.read_csv("resources/data/train.csv")
-
-        # Title and description for this section
-        st.title("Top Rated Movies with Posters")
-        st.write("Explore the top-rated movies based on user ratings:")
-
-        # Get top-rated movies
-        top_rated_movies = ratings_data.groupby('movieId')['rating'].mean().sort_values(ascending=False).head(10)
-        top_rated_movie_ids = top_rated_movies.index.tolist()
-
-        # Load movie data to get movie details
-        movies_data = pd.read_csv("resources/data/movies.csv")
-
-        # Display details of top-rated movies with posters in a table
-        st.write("Top 10 Rated Movies:")
-        st.write("")
-
-        # Create a table to display movie details
-        table_columns = ["Movie Title", "Genres", "Avg Rating", "Poster"]
-        table_data = []
-
-        # Loop through top-rated movies
-        for movie_id in top_rated_movie_ids:
-            movie_details = movies_data[movies_data['movieId'] == movie_id].iloc[0]
-            
-            # Get poster URL
-            poster_path = f"resources/img/{movie_id}.jpg"
-            
-            # Add row to the table
-            table_data.append([
-                f"**{movie_details['title']}**",
-                movie_details['genres'],
-                f"{top_rated_movies[movie_id]:.2f}",
-                f"![Poster]({poster_path})"
-            ])
-
-        # Display the table
-        st.table(pd.DataFrame(table_data, columns=table_columns).set_index("Movie Title"))
 
 
-    if page_selection == "Dashboard":
+
+    if page_selection == "Analytics":
         train_data = pd.read_csv("resources/data/train.csv")
         movies_data = pd.read_csv("resources/data/movies.csv")
         tags_data = pd.read_csv("resources/data/tags.csv")
-        st.title("MovieLens Interactive Dashboard")
-    
-        # Sidebar options
-        st.sidebar.subheader("Navigation")
-        page = st.sidebar.radio("Go to", ["Dashboard", "Data Exploration"])
+
+	st.subheader("Top 10 Movies by Ratings")
+        top_movies = train_data.groupby('movieId')['rating'].mean().sort_values(ascending=False).head(10)
+        top_movies = pd.merge(top_movies, movies_data, on='movieId', how='left')
+        st.table(top_movies[['title', 'rating']])
 
         # Main content
-        if page == "Dashboard":
-            st.subheader("Movie Ratings Distribution")
-            ratings_count = train_data["rating"].value_counts()
-            st.bar_chart(ratings_count)
+        st.subheader("Movie Ratings Distribution")
+        ratings_count = train_data["rating"].value_counts()
+        st.bar_chart(ratings_count)
 
-            st.subheader("Top 10 Movies by Ratings")
-            top_movies = train_data.groupby('movieId')['rating'].mean().sort_values(ascending=False).head(10)
-            top_movies = pd.merge(top_movies, movies_data, on='movieId', how='left')
-            st.table(top_movies[['title', 'rating']])
 
-        elif page == "Data Exploration":
-            st.subheader("Movies Genres Distribution")
-            genres_count = movies_data['genres'].str.split('|', expand=True).stack().value_counts()
-            st.bar_chart(genres_count)
+        st.subheader("Movies Genres Distribution")
+        genres_count = movies_data['genres'].str.split('|', expand=True).stack().value_counts()
+        st.bar_chart(genres_count)
 
-            st.subheader("Tag Distribution")
-            tag_count = tags_data['tag'].value_counts()
-            st.bar_chart(tag_count.head(20))
+        st.subheader("Tag Distribution")
+        tag_count = tags_data['tag'].value_counts()
+        st.bar_chart(tag_count.head(20))
 
        
                 
