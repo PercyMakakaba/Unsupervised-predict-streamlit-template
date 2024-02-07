@@ -38,6 +38,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 from wordcloud import WordCloud
+import random
 
 # Custom Libraries
 from utils.data_loader import load_movie_titles
@@ -50,25 +51,27 @@ from recommenders.content_based import content_model
 title_list = load_movie_titles('resources/data/movies.csv')
 train_data = pd.read_csv("resources/data/train.csv")
 
-#
-page_bg_img = f"""
-<style>
-[data-testid="stAppViewContainer"] > .main {{
-background: rgb(58,175,169);
-background: linear-gradient(90deg, rgba(58,175,169,1) 35%, rgba(58,175,169,1) 97%, rgba(58,175,169,1) 100%);}}
 
-[data-testid="stSidebar"] > div:first-child {{
-background: rgb(23,37,42);
-background: linear-gradient(90deg, rgba(23,37,42,1) 35%, rgba(23,37,42,1) 97%, rgba(23,37,42,1) 100%);
-}}
-"""
-st.markdown(page_bg_img, unsafe_allow_html=True)
+
+#
+#page_bg_img = f"""
+#<style>
+#[data-testid="stAppViewContainer"] > .main {{
+#background: rgb(58,175,169);
+#background: linear-gradient(90deg, rgba(58,175,169,1) 35%, rgba(58,175,169,1) 97%, rgba(58,175,169,1) 100%);}}
+
+#[data-testid="stSidebar"] > div:first-child {{
+#background: rgb(23,37,42);
+#background: linear-gradient(90deg, rgba(23,37,42,1) 35%, rgba(23,37,42,1) 97%, rgba(23,37,42,1) 100%);
+#}}
+#"""
+#st.markdown(page_bg_img, unsafe_allow_html=True)
 
 
 
 # App declaration
 def main():
-    page_options = ["Recommender System","Solution Overview", "Dashboard", "Contact us", 'yes', 'no', 'Contact us']
+    page_options = ["Recommender System","Movie Information search", "Genre-based search","Dashboard", "Contact Us"]
 
     # -------------------------------------------------------------------
     # ----------- !! THIS CODE MUST NOT BE ALTERED !! -------------------
@@ -127,7 +130,7 @@ def main():
                     
 
     #Analytics/Dashboard page
-    if page_selection == "Dashboard":
+    if page_selection == "Movie Information search":
         # Load movie data
         movies_data = pd.read_csv("resources/data/movies.csv")
 
@@ -154,7 +157,7 @@ def main():
             movie_ratings = ratings_data[ratings_data['movieId'] == selected_movie_details['movieId']]
             
             if not movie_ratings.empty:
-                st.write(f"**Average Rating:** {round(movie_ratings['rating'].mean(),2)}")
+                st.write(f"**Average Rating:** {round(movie_ratings['rating'].mean(),2)}/5")
             else:
                 st.write("**No Ratings Available for this Movie**")
         else:
@@ -163,36 +166,55 @@ def main():
 
 
     #Solution overview page
-    if page_selection == "Solution Overview":
+    if page_selection == "Genre-based search":
+        # Load movie and ratings data
         # Load movie and ratings data
         movies_data = pd.read_csv("resources/data/movies.csv")
         ratings_data = pd.read_csv("resources/data/train.csv")
 
-
         # Title and description for this section
         st.title("Genre-Based Movie Recommendations")
-        st.write("Select a genre to get movie recommendations:")
+        st.write("Select a genre and choose the recommendation method:")
 
         # Dropdown to select a genre
         selected_genre = st.selectbox("Select Genre", movies_data['genres'].unique())
 
+        # Radio button to choose recommendation method
+        recommendation_method = st.radio("Select Recommendation Method", ("Top 10 Movies", "Random Selection"))
+
         # Get movies of the selected genre
         genre_movies = movies_data[movies_data['genres'].str.contains(selected_genre)]
 
-        # Display a sample of movies of the selected genre
-        st.write(f"Sample of {selected_genre} Movies:")
-        st.dataframe(genre_movies.head())
 
-        # Recommender: Recommend top-rated movies of the selected genre
-        top_genre_movies = genre_movies.merge(ratings_data, on='movieId')
-        top_genre_movies = top_genre_movies.groupby('title')['rating'].mean().sort_values(ascending=False).head(10)
-
-        # Display recommended movies
-        st.write("Top 10 Recommended Movies in the Selected Genre:")
-        st.write(top_genre_movies.index.tolist())
+        # Get top 10 movies by genre or perform random selection
+        if recommendation_method == "Top 10 Movies":
+            # Recommender: Recommend top-rated movies of the selected genre
+            top_genre_movies = genre_movies.merge(ratings_data, on='movieId')
+            top_genre_movies = top_genre_movies.groupby('title')['rating'].mean().sort_values(ascending=False).head(10)
+            
+            # Display recommended movies in a table
+            st.write("Top 10 Recommended Movies in the Selected Genre:")
+            st.table(top_genre_movies.reset_index())
+        else:
+            # Shuffle the genre movies and select 10 random movies
+            random.seed()  # we won't set a seed
+            random_genre_movies = random.sample(list(genre_movies['movieId']), min(10, len(genre_movies)))
+            
+            # Fetch ratings for randomly selected movies
+            random_movies_ratings = ratings_data[ratings_data['movieId'].isin(random_genre_movies)]
+            
+            # Calculate average rating for each randomly selected movie
+            random_movies_avg_ratings = random_movies_ratings.groupby('movieId')['rating'].mean().reset_index()
+            
+            # Merge with movies_data to get movie titles
+            random_movies = pd.merge(random_movies_avg_ratings, movies_data, on='movieId')
+            
+            # Display recommended movies and their average ratings as a table
+            st.write("10 Randomly Selected Movies in the Selected Genre:")
+            st.table(random_movies[['title', 'rating']].rename(columns={'rating': 'Average Rating'}).reset_index(drop=True))
 
     #Contact us page
-    if page_selection == "Contact us":
+    if page_selection == "Contact Us":
         st.write("---")
 
         contact_form = """
@@ -217,6 +239,7 @@ def main():
     
         #Another page
     if page_selection == "Another":
+
         # Load ratings data
         ratings_data = pd.read_csv("resources/data/train.csv")
 
@@ -258,49 +281,37 @@ def main():
         st.table(pd.DataFrame(table_data, columns=table_columns).set_index("Movie Title"))
 
 
-    if page_selection == "yes":
-
-                # Load the data
-        tags_data = pd.read_csv("resources/data/tags.csv")
+    if page_selection == "Dashboard":
+        train_data = pd.read_csv("resources/data/train.csv")
         movies_data = pd.read_csv("resources/data/movies.csv")
-        # Function to generate and display word cloud
-        def generate_wordcloud():
-            # Concatenate all tags into a single string
-            all_tags = ' '.join(tags_data['tag'].astype(str))
+        tags_data = pd.read_csv("resources/data/tags.csv")
+        st.title("MovieLens Interactive Dashboard")
+    
+        # Sidebar options
+        st.sidebar.subheader("Navigation")
+        page = st.sidebar.radio("Go to", ["Dashboard", "Data Exploration"])
 
-            # Generate the word cloud
-            wordcloud = WordCloud(width=800, height=400, background_color='white').generate(all_tags)
+        # Main content
+        if page == "Dashboard":
+            st.subheader("Movie Ratings Distribution")
+            ratings_count = train_data["rating"].value_counts()
+            st.bar_chart(ratings_count)
 
-            # Display the word cloud using Matplotlib
-            st.image(wordcloud.to_image(), use_container_width=True)
+            st.subheader("Top 10 Movies by Ratings")
+            top_movies = train_data.groupby('movieId')['rating'].mean().sort_values(ascending=False).head(10)
+            top_movies = pd.merge(top_movies, movies_data, on='movieId', how='left')
+            st.table(top_movies[['title', 'rating']])
 
-        # Function to display a bar chart of movie genres
-        def display_genre_bar_chart():
-            genre_counts = movies_data['genres'].str.split('|', expand=True).stack().value_counts()
-            st.bar_chart(genre_counts)
+        elif page == "Data Exploration":
+            st.subheader("Movies Genres Distribution")
+            genres_count = movies_data['genres'].str.split('|', expand=True).stack().value_counts()
+            st.bar_chart(genres_count)
 
-        # Streamlit app definition
-        def main():
-            st.title("MovieLens Recommender Dashboard")
+            st.subheader("Tag Distribution")
+            tag_count = tags_data['tag'].value_counts()
+            st.bar_chart(tag_count.head(20))
 
-            # Add a section for the word cloud
-            st.header("User-Generated Tags Word Cloud")
-            generate_wordcloud()
-
-            # Add a section for movie genres bar chart
-            st.header("Movie Genres Bar Chart")
-            display_genre_bar_chart()
-
-            # Add an interactive dropdown for movie genres
-            selected_genre = st.selectbox("Select a Genre:", movies_data['genres'].str.split('|').explode().unique())
-
-            # Display movies based on the selected genre
-            st.subheader(f"Movies in {selected_genre} genre:")
-            movies_in_genre = movies_data[movies_data['genres'].str.contains(selected_genre)]
-            st.dataframe(movies_in_genre[['movieId', 'title', 'genres']])
-
-        if __name__ == "__main__":
-            main()
+       
                 
 if __name__ == '__main__':
     main()
