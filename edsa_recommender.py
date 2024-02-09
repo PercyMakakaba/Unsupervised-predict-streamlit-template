@@ -26,32 +26,59 @@
 
 """
 # Streamlit dependencies
+# from importlib.metadata import packages_distributions
 import streamlit as st
+#from streamlit_option_menu import option_menu
+#from streamlit_lottie import st_lottie
 
 # Data handling dependencies
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+#from wordcloud import WordCloud
+import random
 
 # Custom Libraries
 from utils.data_loader import load_movie_titles
 from recommenders.collaborative_based import collab_model
 from recommenders.content_based import content_model
 
+
+
 # Data Loading
 title_list = load_movie_titles('resources/data/movies.csv')
+train_data = pd.read_csv("resources/data/train.csv")
+
+
+
+#
+#page_bg_img = f"""
+#<style>
+#[data-testid="stAppViewContainer"] > .main {{
+#background: rgb(58,175,169);
+#background: linear-gradient(90deg, rgba(58,175,169,1) 35%, rgba(58,175,169,1) 97%, rgba(58,175,169,1) 100%);}}
+
+#[data-testid="stSidebar"] > div:first-child {{
+#background: rgb(23,37,42);
+#background: linear-gradient(90deg, rgba(23,37,42,1) 35%, rgba(23,37,42,1) 97%, rgba(23,37,42,1) 100%);
+#}}
+#"""
+#st.markdown(page_bg_img, unsafe_allow_html=True)
+
+
 
 # App declaration
 def main():
-
-    # DO NOT REMOVE the 'Recommender System' option below, however,
-    # you are welcome to add more options to enrich your app.
-    page_options = ["Recommender System","Solution Overview", "Analytics"]
+    page_options = ["Recommender System","Movie Information search", "Genre-based search", "Analytics" "Contact Us"]
 
     # -------------------------------------------------------------------
     # ----------- !! THIS CODE MUST NOT BE ALTERED !! -------------------
     # -------------------------------------------------------------------
     page_selection = st.sidebar.selectbox("Choose Option", page_options)
     if page_selection == "Recommender System":
+        st.write("---")
         # Header contents
         st.write('# Movie Recommender Engine')
         st.write('### EXPLORE Data Science Academy Unsupervised Predict')
@@ -100,19 +127,143 @@ def main():
     # -------------------------------------------------------------------
 
     # ------------- SAFE FOR ALTERING/EXTENSION -------------------
-    if page_selection == "Solution Overview":
-        st.title("Solution Overview")
-        st.write("Describe your winning approach on this page")
+                    
+
+    #Analytics/Dashboard page
+    if page_selection == "Movie Information search":
+        # Load movie data
+        movies_data = pd.read_csv("resources/data/movies.csv")
+
+        # Title and description for this section
+        st.title("Movie Information")
+        st.write("Search for a movie to see details:")
+
+        # Search bar to select a movie
+        search_query = st.text_input("Search Movie")
+        matching_movies = movies_data[movies_data['title'].str.contains(search_query, case=False)]
+
+        # Check if matching movies found
+        if not matching_movies.empty:
+            selected_movie = st.selectbox("Select Movie", matching_movies['title'])
+
+            # Display details about the selected movie
+            selected_movie_details = movies_data[movies_data['title'] == selected_movie].iloc[0]
+            st.write(f"**Title:** {selected_movie_details['title']}")
+            st.write(f"**Genres:** {selected_movie_details['genres']}")
+            
+
+            # Display ratings information using the train.csv file
+            ratings_data = pd.read_csv("resources/data/train.csv")
+            movie_ratings = ratings_data[ratings_data['movieId'] == selected_movie_details['movieId']]
+            
+            if not movie_ratings.empty:
+                st.write(f"**Average Rating:** {round(movie_ratings['rating'].mean(),2)}/5")
+            else:
+                st.write("**No Ratings Available for this Movie**")
+        else:
+            st.warning("No matching movies found. Please ")
 
 
-            # ------------- SAFE FOR ALTERING/EXTENSION -------------------
+
+    #Solution overview page
+    if page_selection == "Genre-based search":
+        # Load movie and ratings data
+        # Load movie and ratings data
+        movies_data = pd.read_csv("resources/data/movies.csv")
+        ratings_data = pd.read_csv("resources/data/train.csv")
+
+        # Title and description for this section
+        st.title("Genre-Based Movie Recommendations")
+        st.write("Select a genre and choose the recommendation method:")
+
+        # Dropdown to select a genre
+        selected_genre = st.selectbox("Select Genre", movies_data['genres'].unique())
+
+        # Radio button to choose recommendation method
+        recommendation_method = st.radio("Select Recommendation Method", ("Top 10 Movies", "Random Selection"))
+
+        # Get movies of the selected genre
+        genre_movies = movies_data[movies_data['genres'].str.contains(selected_genre)]
+
+
+        # Get top 10 movies by genre or perform random selection
+        if recommendation_method == "Top 10 Movies":
+            # Recommender: Recommend top-rated movies of the selected genre
+            top_genre_movies = genre_movies.merge(ratings_data, on='movieId')
+            top_genre_movies = top_genre_movies.groupby('title')['rating'].mean().sort_values(ascending=False).head(10)
+            
+            # Display recommended movies in a table
+            st.write("Top 10 Recommended Movies in the Selected Genre:")
+            st.table(top_genre_movies.reset_index())
+        else:
+            # Shuffle the genre movies and select 10 random movies
+            random.seed()  # we won't set a seed
+            random_genre_movies = random.sample(list(genre_movies['movieId']), min(10, len(genre_movies)))
+            
+            # Fetch ratings for randomly selected movies
+            random_movies_ratings = ratings_data[ratings_data['movieId'].isin(random_genre_movies)]
+            
+            # Calculate average rating for each randomly selected movie
+            random_movies_avg_ratings = random_movies_ratings.groupby('movieId')['rating'].mean().reset_index()
+            
+            # Merge with movies_data to get movie titles
+            random_movies = pd.merge(random_movies_avg_ratings, movies_data, on='movieId')
+            
+            # Display recommended movies and their average ratings as a table
+            st.write("10 Randomly Selected Movies in the Selected Genre:")
+            st.table(random_movies[['title', 'rating']].rename(columns={'rating': 'Average Rating'}).reset_index(drop=True))
+
+    #Contact us page
+    if page_selection == "Contact Us":
+        st.write("---")
+
+        contact_form = """
+        <h4>For more information please contact us...</h4>
+        <form action="https://formsubmit.co/your@email.com" method="POST">
+        <input type="text" name="name", placeholder="Your name" required>
+        <input type="email" name="email", placeholder="Your email" required>
+        <textarea name="message" placeholder="Your message here"></textarea>
+        <button type="submit">Send</button>
+        </form>
+
+        """
+
+        st.markdown(contact_form, unsafe_allow_html=True)
+
+        #use local css file
+        def local_css(file_name):
+                with open(file_name) as f:
+                    st.markdown(f"<style>{f.read()}</styel>", unsafe_allow_html=True)
+        
+        local_css('style/style.css')
+
+
+
     if page_selection == "Analytics":
-        st.title("Solution Overview")
-        st.write("Describe your winning approach on this page")
+        train_data = pd.read_csv("resources/data/train.csv")
+        movies_data = pd.read_csv("resources/data/movies.csv")
+        tags_data = pd.read_csv("resources/data/tags.csv")
 
-    # You may want to add more sections here for aspects such as an EDA,
-    # or to provide your business pitch.
+	st.subheader("Top 10 Movies by Ratings")
+        top_movies = train_data.groupby('movieId')['rating'].mean().sort_values(ascending=False).head(10)
+        top_movies = pd.merge(top_movies, movies_data, on='movieId', how='left')
+        st.table(top_movies[['title', 'rating']])
+
+        # Main content
+        st.subheader("Movie Ratings Distribution")
+        ratings_count = train_data["rating"].value_counts()
+        st.bar_chart(ratings_count)
 
 
+        st.subheader("Movies Genres Distribution")
+        genres_count = movies_data['genres'].str.split('|', expand=True).stack().value_counts()
+        st.bar_chart(genres_count)
+
+        st.subheader("Tag Distribution")
+        tag_count = tags_data['tag'].value_counts()
+        st.bar_chart(tag_count.head(20))
+
+       
+                
 if __name__ == '__main__':
     main()
